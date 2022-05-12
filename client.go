@@ -67,9 +67,18 @@ func (c *Client) readPump() {
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, messageText, err := c.conn.ReadMessage()
+		fmt.Println("Got message from client", err)
+
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
+			}
+			if websocket.IsCloseError(err) {
+				log.Printf("error: %v", err)
+			}
+			err := c.conn.Close()
+			if err != nil {
+				return
 			}
 			break
 		}
@@ -105,8 +114,13 @@ func (c *Client) writePump() {
 					}
 				}
 			*/
-			fmt.Println("msg: {}", message)
+			fmt.Println("WritePump: msg = ", message)
 			if err := c.conn.WriteJSON(message); err != nil {
+				//fmt.Println("Encountered Error in writing msg = ", err)
+				err := c.conn.Close()
+				if err != nil {
+					return
+				}
 				break
 			}
 			/*
