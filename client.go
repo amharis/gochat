@@ -67,6 +67,7 @@ func (c *Client) readPump() {
 			Name:    c.name,
 			Message: "Left chat",
 			When:    time.Now(),
+			Hub:     c.hub.ID,
 		}
 		c.hub.broadcast <- m
 		c.hub.publish <- m
@@ -96,6 +97,7 @@ func (c *Client) readPump() {
 			Name:    c.name,
 			Message: string(messageText),
 			When:    time.Now(),
+			Hub:     c.hub.ID,
 		}
 		c.hub.broadcast <- message
 		c.hub.publish <- message
@@ -148,6 +150,12 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	client := &Client{hub: hub, conn: conn, send: make(chan Message, 256), name: fmt.Sprintf("%s-client-%d", hub.ID, counter)}
 	counter = counter + 1
 	client.hub.register <- client
+	client.hub.broadcast <- Message{
+		Name:    client.name,
+		Message: fmt.Sprintf("%s has joined chat", client.name),
+		When:    time.Now(),
+		Hub:     client.hub.ID,
+	}
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.

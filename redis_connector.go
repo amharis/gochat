@@ -11,14 +11,6 @@ type redisConnector struct {
 	hub    *Hub
 }
 
-/**
-type Message struct {
-    Channel      string
-    Pattern      string
-    Payload      string
-    PayloadSlice []string
-}
-*/
 func (rc *redisConnector) run() {
 	subscriber := rc.client.Subscribe(ctx, CHATROOM)
 
@@ -34,7 +26,12 @@ func (rc *redisConnector) run() {
 		if err := json.Unmarshal([]byte(msg.Payload), &m); err != nil {
 			panic(err)
 		}
-		fmt.Printf("Sending message received from Redis to hub: %v \n", m)
-		rc.hub.broadcast <- m
+
+		if (m.Hub == rc.hub.ID) {
+			fmt.Printf("Ignoring message: this hub %s, message %v \n", rc.hub.ID, m)
+		} else {
+			fmt.Printf("Broadcasting message received from Redis to hub %s: %v \n", rc.hub.ID, m)
+			rc.hub.broadcast <- m
+		}
 	}
 }

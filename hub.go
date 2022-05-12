@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"log"
-	"time"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the
@@ -57,12 +56,6 @@ func (h *Hub) run() {
 		select {
 		case client := <-h.register:
 			h.clients[client] = true
-			m := Message{
-				Name:    "",
-				Message: fmt.Sprintf("%s has joined chat", client.name),
-				When:    time.Now(),
-			}
-			h.broadcast <- m
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
 				log.Println("unregistering for client: ")
