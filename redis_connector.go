@@ -7,10 +7,8 @@ import (
 )
 
 type redisConnector struct {
-	client         *redis.Client
-	pushToRedis    chan Message
-	pushToChatroom chan Message
-	hub            *Hub
+	client *redis.Client
+	hub    *Hub
 }
 
 /**
@@ -25,6 +23,7 @@ func (rc *redisConnector) run() {
 	subscriber := rc.client.Subscribe(ctx, CHATROOM)
 
 	for {
+		fmt.Println("Waiting for Redis message")
 		msg, err := subscriber.ReceiveMessage(ctx)
 		fmt.Println("Received Redis message", msg)
 		if err != nil {
@@ -36,7 +35,7 @@ func (rc *redisConnector) run() {
 			panic(err)
 		}
 		fmt.Println("Unmarshalled message", m)
+		fmt.Println("Sending to hub %+v", m)
 		rc.hub.broadcast <- m
-		// ...
 	}
 }

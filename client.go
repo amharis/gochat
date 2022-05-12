@@ -15,16 +15,16 @@ import (
 )
 
 const (
-	// Time allowed to write a message to the peer.
+	// Time allowed to write a Message to the peer.
 	writeWait = 10 * time.Second
 
-	// Time allowed to read the next pong message from the peer.
+	// Time allowed to read the next pong Message from the peer.
 	pongWait = 60 * time.Second
 
 	// Send pings to peer with this period. Must be less than pongWait.
 	pingPeriod = (pongWait * 9) / 10
 
-	// Maximum message size allowed from peer.
+	// Maximum Message size allowed from peer.
 	maxMessageSize = 512
 )
 
@@ -48,7 +48,7 @@ type Client struct {
 	conn *websocket.Conn
 
 	// Buffered channel of outbound messages.
-	send chan message
+	send chan Message
 	name string
 }
 
@@ -67,7 +67,7 @@ func (c *Client) readPump() {
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, messageText, err := c.conn.ReadMessage()
-		fmt.Println("Got message from client", err)
+		fmt.Println("Read pump: got Message =", string(messageText), "client = ", c)
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -83,7 +83,7 @@ func (c *Client) readPump() {
 			break
 		}
 		messageText = bytes.TrimSpace(bytes.Replace(messageText, newline, space, -1))
-		message := message{
+		message := Message{
 			Name:    c.name,
 			Message: string(messageText),
 			When:    time.Now(),
@@ -114,9 +114,9 @@ func (c *Client) writePump() {
 					}
 				}
 			*/
-			fmt.Println("WritePump: msg = ", message)
+			fmt.Printf("WritePump: writing msg %+v, client %+v \n", message, c)
 			if err := c.conn.WriteJSON(message); err != nil {
-				//fmt.Println("Encountered Error in writing msg = ", err)
+				fmt.Printf("WritePump: Encountered Error in writing msg %+v, client %+v, err %+v \n", message, c, err)
 				err := c.conn.Close()
 				if err != nil {
 					return
@@ -135,7 +135,7 @@ func (c *Client) writePump() {
 				if err != nil {
 					return
 				}
-				w.Write(message)
+				w.Write(Message)
 
 				// Add queued chat messages to the current websocket messageData.
 				n := len(c.send)
@@ -166,8 +166,8 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	client := &Client{hub: hub, conn: conn, send: make(chan Message, 256), name: fmt.Sprintf("client %d", counter)}
 	counter = counter + 1
-	client := &Client{hub: hub, conn: conn, send: make(chan message, 256), name: fmt.Sprintf("client %d", counter)}
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in

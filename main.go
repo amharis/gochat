@@ -5,12 +5,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
+var CHATROOM = "chatroom"
+var ctx = context.Background()
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)
