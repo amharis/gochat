@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -30,23 +31,27 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	fmt.Println("Starting!!!")
+	flag.Parse()
+	hub := newHub()
+	// setup logging
 	//create your file with desired read/write permissions
-	f, err := os.OpenFile("chat.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	lfname := fmt.Sprintf("chat-%s.log", hub.ID)
+	f, err := os.OpenFile(lfname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	//defer to close when you're done with it, not because you think it's idiomatic!
-	defer f.Close()
-
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			fmt.Println("Error in closing log file: ", err)
+		}
+	}(f)
 	//set output of logs to f
 	log.SetOutput(f)
+	fmt.Println("Writing to log file: ", lfname)
 
-	//test case
-	log.Printf("check to make sure it works")
-
-	flag.Parse()
-	hub := newHub()
 	go hub.run()
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {

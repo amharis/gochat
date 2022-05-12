@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"log"
@@ -16,18 +17,16 @@ import (
 type Hub struct {
 	// Registered clients.
 	clients map[*Client]bool
-
 	// Inbound messages from the clients.
 	broadcast chan Message
-
 	// Register requests from the clients.
 	register chan *Client
-
 	// Unregister requests from clients.
 	unregister chan *Client
-
 	//redis client
 	redisConnector redisConnector
+	ID             string
+	publish        chan Message
 }
 
 func newHub() *Hub {
@@ -45,6 +44,8 @@ func newHub() *Hub {
 		unregister:     make(chan *Client),
 		clients:        make(map[*Client]bool),
 		redisConnector: rc,
+		ID:             "hub-" + randomString(2),
+		publish:        make(chan Message, 1024),
 	}
 	rc.hub = h
 	go rc.run()
@@ -68,11 +69,19 @@ func (h *Hub) run() {
 				delete(h.clients, client)
 				close(client.send)
 			}
+		case message := <-h.publish:
+			log.Printf("Publishing message to redis %v\n", message)
+			// send Message to redis
+			message_bytes, err := json.Marshal(message)
+			if err != nil {
+				log.Printf("Error in marshalling %s message %s", err, message)
+			} else {
+				code := h.redisConnector.client.Publish(ctx, CHATROOM, message_bytes)
+				log.Printf("Publish code: ", code.Name(), code.Err())
+			}
+
 		case message := <-h.broadcast:
 			log.Printf("Broadcasting message. %v\n", message)
-			// send Message to redis
-			h.redisConnector.client.Publish(ctx, CHATROOM, message)
-
 			// send to local clients
 			for client := range h.clients {
 				if true {

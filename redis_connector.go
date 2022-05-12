@@ -34,8 +34,7 @@ func (rc *redisConnector) run() {
 		if err := json.Unmarshal([]byte(msg.Payload), &m); err != nil {
 			panic(err)
 		}
-		fmt.Println("Unmarshalled message", m)
-		fmt.Println("Sending to hub %+v", m)
+		fmt.Printf("Sending message received from Redis to hub: %v \n", m)
 		rc.hub.broadcast <- m
 	}
 }

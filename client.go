@@ -63,11 +63,13 @@ func (c *Client) readPump() {
 		c.hub.unregister <- c
 		c.conn.Close()
 		fmt.Println("broadcast message for client leaving:", c)
-		c.hub.broadcast <- Message{
+		m := Message{
 			Name:    c.name,
 			Message: "Left chat",
 			When:    time.Now(),
 		}
+		c.hub.broadcast <- m
+		c.hub.publish <- m
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -96,6 +98,7 @@ func (c *Client) readPump() {
 			When:    time.Now(),
 		}
 		c.hub.broadcast <- message
+		c.hub.publish <- message
 	}
 }
 
@@ -142,7 +145,7 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := &Client{hub: hub, conn: conn, send: make(chan Message, 256), name: fmt.Sprintf("client %d", counter)}
+	client := &Client{hub: hub, conn: conn, send: make(chan Message, 256), name: fmt.Sprintf("%s-client-%d", hub.ID, counter)}
 	counter = counter + 1
 	client.hub.register <- client
 
