@@ -59,15 +59,22 @@ type Client struct {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
+		fmt.Println("Running defer for client:", c)
 		c.hub.unregister <- c
 		c.conn.Close()
+		fmt.Println("broadcast message for client leaving:", c)
+		c.hub.broadcast <- Message{
+			Name:    c.name,
+			Message: "Left chat",
+			When:    time.Now(),
+		}
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, messageText, err := c.conn.ReadMessage()
-		fmt.Println("Read pump: got Message =", string(messageText), "client = ", c)
+		log.Println("Read pump: got Message =", string(messageText), "client = ", c)
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -105,50 +112,19 @@ func (c *Client) writePump() {
 	}()
 	for {
 		select {
-		case message, _ := <-c.send:
-			/*
-				for msg := range messageData {
-					fmt.Println("msg: {}", msg)
-					if err := c.conn.WriteJSON(msg); err != nil {
-						break
-					}
-				}
-			*/
-			fmt.Printf("WritePump: writing msg %+v, client %+v \n", message, c)
+		case message, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				// The hub closed the channel.
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			log.Printf("WritePump: writing msg %v, client %v \n", message, c)
 			if err := c.conn.WriteJSON(message); err != nil {
-				fmt.Printf("WritePump: Encountered Error in writing msg %+v, client %+v, err %+v \n", message, c, err)
-				err := c.conn.Close()
-				if err != nil {
-					return
-				}
+				log.Printf("WritePump: Encountered Error in writing msg %+v, client %+v, err %+v \n", message, c, err)
 				break
 			}
-			/*
-				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-				if !ok {
-					// The hub closed the channel.
-					c.conn.WriteMessage(websocket.CloseMessage, []byte{})
-					return
-				}
-
-				w, err := c.conn.NextWriter(websocket.TextMessage)
-				if err != nil {
-					return
-				}
-				w.Write(Message)
-
-				// Add queued chat messages to the current websocket messageData.
-				n := len(c.send)
-				for i := 0; i < n; i++ {
-					w.Write(newline)
-					w.Write(<-c.send)
-				}
-
-				if err := w.Close(); err != nil {
-					return
-				}
-
-			*/
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {

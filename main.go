@@ -9,6 +9,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
@@ -29,6 +30,21 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	//create your file with desired read/write permissions
+	f, err := os.OpenFile("chat.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//defer to close when you're done with it, not because you think it's idiomatic!
+	defer f.Close()
+
+	//set output of logs to f
+	log.SetOutput(f)
+
+	//test case
+	log.Printf("check to make sure it works")
+
 	flag.Parse()
 	hub := newHub()
 	go hub.run()
@@ -36,7 +52,7 @@ func main() {
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})
-	err := http.ListenAndServe(*addr, nil)
+	err = http.ListenAndServe(*addr, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

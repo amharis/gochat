@@ -7,7 +7,7 @@ package main
 import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"github.com/gorilla/websocket"
+	"log"
 	"time"
 )
 
@@ -64,34 +64,18 @@ func (h *Hub) run() {
 			h.broadcast <- m
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
-				cm := websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("closing connection for client: ", client.name))
-				if err := client.conn.WriteMessage(websocket.CloseMessage, cm); err != nil {
-					// handle error
-				}
-				err := client.conn.Close()
-				if err != nil {
-					fmt.Println("Error in closing client", client, err)
-					// TODO: re think cleanup here!
-					return
-				}
+				log.Println("unregistering for client: ")
 				delete(h.clients, client)
 				close(client.send)
-				m := Message{
-					Name:    "",
-					Message: fmt.Sprintf("%s has left chat", client.name),
-					When:    time.Now(),
-				}
-				h.broadcast <- m
 			}
-
 		case message := <-h.broadcast:
-			fmt.Printf("Broadcasting message. %v\n", message)
+			log.Printf("Broadcasting message. %v\n", message)
 			// send Message to redis
 			h.redisConnector.client.Publish(ctx, CHATROOM, message)
 
 			// send to local clients
 			for client := range h.clients {
-				if client.name != message.Name {
+				if true {
 					select {
 					case client.send <- message:
 					default:
