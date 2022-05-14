@@ -66,7 +66,7 @@ func (c *Client) readPump() {
 		m := Message{
 			Name:    c.name,
 			Message: "Left chat",
-			When:    time.Now(),
+			When:    getFormattedTime(),
 			Hub:     c.hub.ID,
 		}
 		c.hub.broadcast <- m
@@ -96,7 +96,7 @@ func (c *Client) readPump() {
 		message := Message{
 			Name:    c.name,
 			Message: string(messageText),
-			When:    time.Now(),
+			When:    getFormattedTime(),
 			Hub:     c.hub.ID,
 		}
 		c.hub.broadcast <- message
@@ -126,6 +126,7 @@ func (c *Client) writePump() {
 			}
 
 			log.Printf("WritePump: writing msg %v, client %v \n", message, c)
+			message.Hub = ""
 			if err := c.conn.WriteJSON(message); err != nil {
 				log.Printf("WritePump: Encountered Error in writing msg %+v, client %+v, err %+v \n", message, c, err)
 				break
@@ -153,7 +154,7 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	m := Message{
 		Name:    client.name,
 		Message: fmt.Sprintf("%s has joined chat", client.name),
-		When:    time.Now(),
+		When:    getFormattedTime(),
 		Hub:     client.hub.ID,
 	}
 	client.hub.broadcast <- m
@@ -170,4 +171,11 @@ func randomString(length int) string {
 	b := make([]byte, length)
 	rand.Read(b)
 	return fmt.Sprintf("%x", b)[:length]
+}
+
+func getFormattedTime() string {
+	currentTime := time.Now()
+	return fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
+		currentTime.Year(), currentTime.Month(), currentTime.Day(),
+		currentTime.Hour(), currentTime.Minute(), currentTime.Second())
 }
