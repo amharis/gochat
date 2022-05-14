@@ -13,7 +13,8 @@ import (
 	"os"
 )
 
-var addr = flag.String("addr", ":8080", "http service address")
+var chatroomListener = flag.String("chat-backend", "0.0.0.0:8080", "chatroom backend's address")
+var redisConnctionString = flag.String("redis-connection-string", "localhost:6379", "redis server's address")
 var CHATROOM = "chatroom"
 var ctx = context.Background()
 
@@ -31,8 +32,8 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	fmt.Println("Starting!!!")
 	flag.Parse()
+	fmt.Println("Starting: input args: ", *chatroomListener, *redisConnctionString)
 	hub := newHub()
 	// setup logging
 	//create your file with desired read/write permissions
@@ -57,7 +58,7 @@ func main() {
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})
-	err = http.ListenAndServe(*addr, nil)
+	err = http.ListenAndServe(*chatroomListener, nil)
 	if err != nil {
 		fmt.Println("ListenAndServe: ", err)
 	}

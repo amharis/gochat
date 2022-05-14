@@ -150,12 +150,14 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	client := &Client{hub: hub, conn: conn, send: make(chan Message, 256), name: fmt.Sprintf("%s-client-%d", hub.ID, counter)}
 	counter = counter + 1
 	client.hub.register <- client
-	client.hub.broadcast <- Message{
+	m := Message{
 		Name:    client.name,
 		Message: fmt.Sprintf("%s has joined chat", client.name),
 		When:    time.Now(),
 		Hub:     client.hub.ID,
 	}
+	client.hub.broadcast <- m
+	client.hub.publish <- m
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.

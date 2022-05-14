@@ -30,7 +30,8 @@ type Hub struct {
 
 func newHub() *Hub {
 	c := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr: *redisConnctionString,
+		//Password: "foobared",
 	})
 
 	fmt.Printf("Created new client %+v \n", c)

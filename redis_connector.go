@@ -12,11 +12,11 @@ type redisConnector struct {
 }
 
 func (rc *redisConnector) run() {
-	subscriber := rc.client.Subscribe(ctx, CHATROOM)
+	pubSub := rc.client.Subscribe(ctx, CHATROOM)
 
 	for {
 		fmt.Println("Waiting for Redis message")
-		msg, err := subscriber.ReceiveMessage(ctx)
+		msg, err := pubSub.ReceiveMessage(ctx)
 		fmt.Println("Received Redis message", msg)
 		if err != nil {
 			fmt.Println("Error in message reading from Redis", err)
@@ -27,7 +27,7 @@ func (rc *redisConnector) run() {
 			panic(err)
 		}
 
-		if (m.Hub == rc.hub.ID) {
+		if m.Hub == rc.hub.ID {
 			fmt.Printf("Ignoring message: this hub %s, message %v \n", rc.hub.ID, m)
 		} else {
 			fmt.Printf("Broadcasting message received from Redis to hub %s: %v \n", rc.hub.ID, m)

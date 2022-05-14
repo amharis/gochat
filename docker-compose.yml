@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+  chatroom1:
+    environment:
+      - REDIS_CONNECTION_STRING=host.docker.internal:6379
+      - CHATROOM_LISTENER=${BACKEND_LISTENER1_PORT:-0.0.0.0:8081}
+    ports:
+      - 8081:8081
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+  chatbackend2:
+    environment:
+      - REDIS_CONNECTION_STRING=host.docker.internal:6379
+      - CHATROOM_LISTENER=${BACKEND_LISTENER2_PORT:-0.0.0.0:8082}
+    ports:
+      - 8082:8082
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+  redis:
+    image: redis:7.0.0
+    ports:
+      - 6379:6379
+    # command: redis-server --save 60 1 --requirepass MDNcVb924a --loglevel warning
+# docker run -p 8080:8080 -e REDIS_CONNECTION_STRING=host.docker.internal:6379 chatroom/chatroom:1.0.0
+# docker run -p 6379:6379 redis:7.0.0

@@ -13,3 +13,7 @@ https://yalantis.com/blog/how-to-build-websockets-in-go/
 ### Pub Sub
 https://www.compose.com/articles/redis-go-and-how-to-build-a-chat-application/
 https://dev.to/franciscomendes10866/using-redis-pub-sub-with-golang-mf9
+
+
+## Run Instructions
+- docker-compose up -d redis ?
