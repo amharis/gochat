@@ -15,16 +15,16 @@ import (
 )
 
 const (
-	// Time allowed to write a message to the peer.
+	// Time allowed to write a Message to the peer.
 	writeWait = 10 * time.Second
 
-	// Time allowed to read the next pong message from the peer.
+	// Time allowed to read the next pong Message from the peer.
 	pongWait = 60 * time.Second
 
 	// Send pings to peer with this period. Must be less than pongWait.
 	pingPeriod = (pongWait * 9) / 10
 
-	// Maximum message size allowed from peer.
+	// Maximum Message size allowed from peer.
 	maxMessageSize = 512
 )
 
@@ -48,7 +48,7 @@ type Client struct {
 	conn *websocket.Conn
 
 	// Buffered channel of outbound messages.
-	send chan message
+	send chan Message
 	name string
 }
 
@@ -59,27 +59,50 @@ type Client struct {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
+		fmt.Println("Running defer for client:", c)
 		c.hub.unregister <- c
-		c.conn.Close()
+		err := c.conn.Close()
+		if err != nil {
+			fmt.Println("Readpump: Connection close error in deferred statement, c = ", c.name)
+			return
+		}
+		fmt.Println("broadcast message for client leaving:", c)
+		m := Message{
+			Name:    c.name,
+			Message: "Left chat",
+			When:    getFormattedTime(),
+			Hub:     c.hub.ID,
+		}
+		c.hub.publish <- m
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, messageText, err := c.conn.ReadMessage()
+		log.Println("Read pump: got Message =", string(messageText), "client = ", c)
+
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
+			if websocket.IsCloseError(err) {
+				log.Printf("error: %v", err)
+			}
+			err := c.conn.Close()
+			if err != nil {
+				return
+			}
 			break
 		}
 		messageText = bytes.TrimSpace(bytes.Replace(messageText, newline, space, -1))
-		message := message{
+		message := Message{
 			Name:    c.name,
 			Message: string(messageText),
-			When:    time.Now(),
+			When:    getFormattedTime(),
+			Hub:     c.hub.ID,
 		}
-		c.hub.broadcast <- message
+		c.hub.publish <- message
 	}
 }
 
@@ -92,49 +115,28 @@ func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.conn.Close()
+		err := c.conn.Close()
+		if err != nil {
+			fmt.Println("Writepump: Connection close error in deferred statement, c = ", c.name)
+			return
+		}
 	}()
 	for {
 		select {
-		case message, _ := <-c.send:
-			/*
-				for msg := range messageData {
-					fmt.Println("msg: {}", msg)
-					if err := c.conn.WriteJSON(msg); err != nil {
-						break
-					}
-				}
-			*/
-			fmt.Println("msg: {}", message)
+		case message, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				// The hub closed the channel.
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			log.Printf("WritePump: writing msg %v, client %v \n", message, c)
+
 			if err := c.conn.WriteJSON(message); err != nil {
+				log.Printf("WritePump: Encountered Error in writing msg %+v, client %+v, err %+v \n", message, c, err)
 				break
 			}
-			/*
-				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-				if !ok {
-					// The hub closed the channel.
-					c.conn.WriteMessage(websocket.CloseMessage, []byte{})
-					return
-				}
-
-				w, err := c.conn.NextWriter(websocket.TextMessage)
-				if err != nil {
-					return
-				}
-				w.Write(message)
-
-				// Add queued chat messages to the current websocket messageData.
-				n := len(c.send)
-				for i := 0; i < n; i++ {
-					w.Write(newline)
-					w.Write(<-c.send)
-				}
-
-				if err := w.Close(); err != nil {
-					return
-				}
-
-			*/
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -152,9 +154,16 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	client := &Client{hub: hub, conn: conn, send: make(chan Message, 256), name: fmt.Sprintf("%s-client-%d", hub.ID, counter)}
 	counter = counter + 1
-	client := &Client{hub: hub, conn: conn, send: make(chan message, 256), name: fmt.Sprintf("client %d", counter)}
 	client.hub.register <- client
+	m := Message{
+		Name:    client.name,
+		Message: fmt.Sprintf("%s has joined chat", client.name),
+		When:    getFormattedTime(),
+		Hub:     client.hub.ID,
+	}
+	client.hub.publish <- m
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
@@ -167,4 +176,11 @@ func randomString(length int) string {
 	b := make([]byte, length)
 	rand.Read(b)
 	return fmt.Sprintf("%x", b)[:length]
+}
+
+func getFormattedTime() string {
+	currentTime := time.Now()
+	return fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
+		currentTime.Year(), currentTime.Month(), currentTime.Day(),
+		currentTime.Hour(), currentTime.Minute(), currentTime.Second())
 }

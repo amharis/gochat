@@ -7,6 +7,7 @@ window.onload = function () {
     var conn;
     var msg = document.getElementById("msg");
     var log = document.getElementById("log");
+    var setClientName = false;
 
     function appendLog(item) {
         var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
@@ -38,9 +39,24 @@ window.onload = function () {
         conn.onmessage = function (evt) {
             var messages = evt.data.split('\n');
             for (var i = 0; i < messages.length; i++) {
-                var item = document.createElement("div");
-                item.innerText = messages[i];
-                appendLog(item);
+                console.log(messages[i]);
+                if (messages[i]) {
+                    const m = JSON.parse(messages[i]);
+                    var item = document.createElement("div");
+                    item.innerText = m.Name + ' -> ' + m.Message  + ' ' + m.When;
+                    appendLog(item);
+                } else {
+                    console.log('skipping ' + messages[i])
+                }
+            }
+
+            const clientNameLabel = document.getElementById("clientname");
+            if (!clientNameLabel.innerHTML && messages.length > 0) {
+                if (messages[0]) {
+                    const m = JSON.parse(messages[0]);
+                    clientNameLabel.innerHTML = m.Name;
+                    console.log(clientname);
+                }
             }
         };
     } else {
@@ -86,6 +102,15 @@ body {
     overflow: hidden;
 }
 
+#clientname {
+    background-color: aliceblue;
+    color: black;
+    font-family: "Arial Black";
+    font-style: normal;
+    width: auto;
+    margin: 0 auto;
+    padding: 0 0.5em 0 0.5em;   
+}
 </style>
 </head>
 <body>
@@ -93,6 +118,7 @@ body {
 <form id="form">
     <input type="submit" value="Send" />
     <input type="text" id="msg" size="64" autofocus />
+    <label id="clientname"></label>
 </form>
 </body>
 </html>

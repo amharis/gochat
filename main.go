@@ -5,15 +5,19 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"log"
+	"fmt"
 	"net/http"
 )
 
-var addr = flag.String("addr", ":8080", "http service address")
+var chatroomListener = flag.String("chat-backend", "0.0.0.0:8080", "chatroom backend's address")
+var redisConnectionString = flag.String("redis-connection-string", "localhost:6379", "redis server's address")
+var CHATROOM = "chatroom"
+var ctx = context.Background()
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
+	fmt.Println(r.URL)
 	if r.URL.Path != "/" {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
@@ -26,15 +30,38 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	fmt.Println("Starting Application")
 	flag.Parse()
+	fmt.Println("input args: ", *chatroomListener, *redisConnectionString)
 	hub := newHub()
 	go hub.run()
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})
-	err := http.ListenAndServe(*addr, nil)
+	err := http.ListenAndServe(*chatroomListener, nil)
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		fmt.Println("ListenAndServe: ", err)
 	}
+}
+
+func setupLogging() {
+	// setup logging, useful in local non-docker setups when stdout is difficult to manage
+	/*
+		lfname := fmt.Sprintf("chat-%s.log", hub.ID)
+		f, err := os.OpenFile(lfname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		//defer to close when you're done with it, not because you think it's idiomatic!
+		defer func(f *os.File) {
+			err := f.Close()
+			if err != nil {
+				fmt.Println("Error in closing log file: ", err)
+			}
+		}(f)
+		//set output of logs to f
+		log.SetOutput(f)
+		fmt.Println("Writing to log file: ", lfname)
+	*/
 }
