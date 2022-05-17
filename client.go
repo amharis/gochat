@@ -59,14 +59,19 @@ type Client struct {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		fmt.Println("Running defer for client:", c)
+		fmt.Println("Running defer for client:", c.name)
 		c.hub.unregister <- c
 		err := c.conn.Close()
 		if err != nil {
-			fmt.Println("Readpump: Connection close error in deferred statement, c = ", c.name)
-			return
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("Readpump: Socket Unexpected close error: %v", err)
+			} else if websocket.IsCloseError(err) {
+				log.Printf("Readpump: Socket close error: %v", err)
+			} else {
+				fmt.Println("Readpump: Connection close error in deferred statement, c = ", c.name)
+			}
 		}
-		fmt.Println("broadcast message for client leaving:", c)
+		fmt.Println("broadcast message for client leaving:", c.name)
 		m := Message{
 			Name:    c.name,
 			Message: "Left chat",
@@ -80,7 +85,7 @@ func (c *Client) readPump() {
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, messageText, err := c.conn.ReadMessage()
-		log.Println("Read pump: got Message =", string(messageText), "client = ", c)
+		log.Println("Read pump: got Message =", string(messageText), "client = ", c.name)
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {

@@ -29,12 +29,5 @@ func (rc *redisConnector) run() {
 		}
 
 		rc.hub.broadcast <- m
-		/*
-			if m.Hub == rc.hub.ID {
-				fmt.Printf("Ignoring message: this hub %s, message %v \n", rc.hub.ID, m)
-			} else {
-				fmt.Printf("Broadcasting message received from Redis to hub %s: %v \n", rc.hub.ID, m)
-			}
-		*/
 	}
 }
