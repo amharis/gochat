@@ -32,7 +32,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 func main() {
 	fmt.Println("Starting Application")
 	flag.Parse()
-	fmt.Println("input args: ", *chatroomListener, *redisConnectionString)
+	fmt.Println("Using args: ", *chatroomListener, *redisConnectionString)
 	hub := newHub()
 	go hub.run()
 	http.HandleFunc("/", serveHome)
